@@ -35,7 +35,7 @@ try {
     $mail->SMTPAuth = true;
     $mail->Username = $SiteEmail;
     // Keep SMTP credentials in SiteConfig.php (ideally loaded from environment variables).
-    $mail->Password = $SitePassword;
+    $mail->Password = 'Epx34S09OO980!@#hkNik123&0LQqi';
     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
     $mail->Port = 587;
     $mail->Timeout = 30;

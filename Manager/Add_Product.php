@@ -240,12 +240,13 @@ $.ajax({
                     var SendTo=$('.Receiver_Email').val();
                     var Subject="Consignment Booked Successfully";
                     var Support="<a style='padding: 10px; text-decoration: none; color: white; background: #203370' href='href='https://widget-page.smartsupp.com/widget/3cdee84b5549494986e3f2d32837ba6eee376b07'>Chat Live Support</a>";
+                    var track_link="<a style='padding: 10px; background: #0b8a78; color: white; ' href='https://expresshiping.com/home/track-package.php'>Track your Package</a>";
                     if(mailContent=="Manual"){
                          var manualcontent=$('.MailContent').val();
 
-var htmlcontent="Your consignment with Tracking ID: <b>"+Tracking_id+"</b> has successfully been lodged on our system (Expresshiping & Logistics). <br><br>"+manualcontent+"<br><br> For more information about this delivery, chat with our Live Support Team by clicking the link below.<br><br><br>"+Support+"<br> Thank you. <br><br> Parcelsend Logistics.";
+var htmlcontent="Your consignment with Tracking ID: <b>"+Tracking_id+"</b> has successfully been lodged on our system (Expresshiping & Logistics). <br><br>"+manualcontent+".<br><br> Track your package using the link below<br>"+track_link+"<br><br> For more information about this delivery, chat with our Live Support Team by clicking the link below.<br><br><br>"+Support+"<br> Thank you. <br><br> Parcelsend Logistics.";
                     }else{
-                          var htmlcontent="Your consignment with Tracking ID: <b>"+Tracking_id+"</b> has successfully been lodged on our system (Expresshiping & Logistics). <br><br>This delivery contract was initiated by:<br><br> Name: "+$('.Sender_Name').val()+"<br>Email: "+$('.Sender_Email').val()+"<br>Address: "+$('.Sender_Address').val()+"<br><br><br><br>"+Support+"<br> Thank you. <br><br> Parcelsend Logistics.";
+                          var htmlcontent="Your consignment with Tracking ID: <b>"+Tracking_id+"</b> has successfully been lodged on our system (Expresshiping & Logistics). <br><br>This delivery contract was initiated by:<br><br> Name: "+$('.Sender_Name').val()+"<br>Email: "+$('.Sender_Email').val()+"<br>Address: "+$('.Sender_Address').val()+"<br><br>Track your package using the link below<br>"+track_link+"<br><br> For more information about this delivery, chat with our live support team by clicking the link below"+Support+"<br> Thank you. <br><br> Parcelsend Logistics.";
                     }
                     $.ajax({
                         url:"SendMail.php",

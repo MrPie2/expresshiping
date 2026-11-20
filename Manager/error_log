@@ -4932,3 +4932,4 @@ Stack trace:
 #3 /home/expressh/public_html/Manager/SendMail.php(82): PHPMailer\PHPMailer\PHPMailer->send()
 #4 {main}
   thrown in /home/expressh/public_html/PHPMailer/src/PHPMailer.php on line 2100
+[20-Nov-2026 11:50:28 UTC] Manager SendMail error: SMTP Error: Could not authenticate.
