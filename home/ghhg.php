@@ -1,0 +1,1 @@
+<?php $lin='ghhg'; include('Header.php');  include('page.php'); ?>

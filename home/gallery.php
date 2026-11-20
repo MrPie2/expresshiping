@@ -1,0 +1,1 @@
+<?php $lin='gallery'; include('Header.php');  include('page.php'); ?>

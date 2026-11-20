@@ -1,0 +1,1 @@
+<?php $lin='index'; include('Header.php');  include('page.php'); ?>

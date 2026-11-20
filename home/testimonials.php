@@ -1,0 +1,1 @@
+<?php $link='testimonials'; include('Header.php'); include('Navbar.php'); include('page.php'); ?>

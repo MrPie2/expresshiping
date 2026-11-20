@@ -1,0 +1,1 @@
+<?php $lin='header'; include('Header.php');  include('page.php'); ?>
