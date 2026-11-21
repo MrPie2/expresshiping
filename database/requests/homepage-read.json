@@ -1,5 +1,4 @@
 {
-  "action": "fix_career_icons",
-  "id": 12,
-  "retry": 1
+  "action": "select",
+  "sql": "SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE link = \"header\" LIMIT 1"
 }
