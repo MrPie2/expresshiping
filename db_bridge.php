@@ -18,6 +18,36 @@ function bridgeRespond(int $status, array $payload): void {
     exit;
 }
 
+/**
+ * Store page snapshots outside public_html. The default location is the
+ * hosting account's home directory, alongside Connect.php.
+ */
+function bridgeBackupPage(array $row): string {
+    $backupDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'db_bridge_backups';
+    if (!is_dir($backupDir) && !mkdir($backupDir, 0700, true) && !is_dir($backupDir)) {
+        throw new RuntimeException('Could not create the private backup directory.');
+    }
+    @chmod($backupDir, 0700);
+    $id = (int) ($row['id'] ?? 0);
+    if ($id < 1) {
+        throw new RuntimeException('Cannot back up a page without a valid ID.');
+    }
+    $backupId = 'page-' . $id . '-' . gmdate('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.json';
+    $payload = [
+        'table' => 'pages',
+        'primary_key' => 'id',
+        'record_id' => $id,
+        'created_at' => gmdate('c'),
+        'row' => $row
+    ];
+    $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    if ($json === false || file_put_contents($backupDir . DIRECTORY_SEPARATOR . $backupId, $json . PHP_EOL, LOCK_EX) === false) {
+        throw new RuntimeException('Could not write the private page backup.');
+    }
+    @chmod($backupDir . DIRECTORY_SEPARATOR . $backupId, 0600);
+    return $backupId;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     header('Allow: POST');
     bridgeRespond(405, ['ok' => false, 'error' => 'POST requests only.']);
@@ -113,6 +143,107 @@ try {
             $columns[] = $row;
         }
         bridgeRespond(200, ['ok' => true, 'table' => $table, 'columns' => $columns]);
+    }
+
+
+    // Back up one page record to a private directory outside public_html.
+    if ($action === 'backup_page') {
+        $id = filter_var($input['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if (!$id) {
+            bridgeRespond(400, ['ok' => false, 'error' => 'A valid page ID is required.']);
+        }
+        $stmt = $db->prepare('SELECT * FROM `pages` WHERE `id` = ? LIMIT 1');
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $stmt->close();
+        if (!$row) {
+            bridgeRespond(404, ['ok' => false, 'error' => 'Page record not found.']);
+        }
+        $backupId = bridgeBackupPage($row);
+        bridgeRespond(200, ['ok' => true, 'message' => 'Page backup created outside public_html.', 'backup_id' => $backupId, 'record_id' => (int) $id]);
+    }
+
+    // Update one pages row only. A full pre-update snapshot is written before
+    // the SQL update is attempted. No arbitrary SQL writes are accepted.
+    if ($action === 'update_page') {
+        $id = filter_var($input['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $fields = $input['fields'] ?? null;
+        $allowedFields = [
+            'Page_Name', 'Page_Contents', 'link', 'icon', 'parent', 'HasChild',
+            'type', 'Cover_Photo', 'Description', 'styles_css', 'script_js',
+            'Status', 'target', 'Date'
+        ];
+        $nullableFields = ['link', 'icon', 'Cover_Photo', 'Description'];
+        if (!$id || !is_array($fields) || count($fields) === 0) {
+            bridgeRespond(400, ['ok' => false, 'error' => 'A valid page ID and non-empty fields object are required.']);
+        }
+        if (count($fields) > count($allowedFields)) {
+            bridgeRespond(400, ['ok' => false, 'error' => 'Too many fields supplied.']);
+        }
+        foreach ($fields as $field => $value) {
+            if (!in_array($field, $allowedFields, true)) {
+                bridgeRespond(400, ['ok' => false, 'error' => 'Field is not permitted: ' . (string) $field]);
+            }
+            if ($value === null && !in_array($field, $nullableFields, true)) {
+                bridgeRespond(400, ['ok' => false, 'error' => 'This field cannot be null: ' . $field]);
+            }
+            if ($value !== null && !is_scalar($value)) {
+                bridgeRespond(400, ['ok' => false, 'error' => 'Field values must be strings, numbers, booleans, or null.']);
+            }
+            if (is_string($value) && strlen($value) > 5000000) {
+                bridgeRespond(413, ['ok' => false, 'error' => 'A field value exceeds the 5 MB limit.']);
+            }
+        }
+
+        $db->begin_transaction();
+        try {
+            $selectStmt = $db->prepare('SELECT * FROM `pages` WHERE `id` = ? LIMIT 1 FOR UPDATE');
+            $selectStmt->bind_param('i', $id);
+            $selectStmt->execute();
+            $result = $selectStmt->get_result();
+            $oldRow = $result->fetch_assoc();
+            $selectStmt->close();
+            if (!$oldRow) {
+                $db->rollback();
+                bridgeRespond(404, ['ok' => false, 'error' => 'Page record not found.']);
+            }
+
+            $backupId = bridgeBackupPage($oldRow);
+            $setParts = [];
+            $values = [];
+            foreach ($fields as $field => $value) {
+                $setParts[] = '`' . $field . '` = ?';
+                $values[] = is_bool($value) ? (int) $value : $value;
+            }
+            $sql = 'UPDATE `pages` SET ' . implode(', ', $setParts) . ' WHERE `id` = ?';
+            $values[] = (int) $id;
+            $types = str_repeat('s', count($fields)) . 'i';
+            $updateStmt = $db->prepare($sql);
+            $bindArgs = [$types];
+            foreach ($values as $key => &$value) {
+                $bindArgs[] = &$value;
+            }
+            unset($value);
+            call_user_func_array([$updateStmt, 'bind_param'], $bindArgs);
+            $updateStmt->execute();
+            $affectedRows = $updateStmt->affected_rows;
+            $updateStmt->close();
+            $db->commit();
+
+            bridgeRespond(200, [
+                'ok' => true,
+                'message' => 'Page updated. A pre-update backup was saved outside public_html.',
+                'record_id' => (int) $id,
+                'backup_id' => $backupId,
+                'updated_fields' => array_keys($fields),
+                'affected_rows' => $affectedRows
+            ]);
+        } catch (Throwable $e) {
+            $db->rollback();
+            throw $e;
+        }
     }
 
     if ($action === 'select') {
