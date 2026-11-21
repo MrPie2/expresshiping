@@ -1,4 +1,5 @@
 {
   "action": "shorten_parcel_rope",
-  "id": 6
+  "id": 6,
+  "requested_height": "40vh"
 }
