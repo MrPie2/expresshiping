@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "database": "expresshipping",
+  "source": {
+    "method": "Live MySQL DESCRIBE via authenticated db_bridge.php",
+    "verified_at": "2026-11-21",
+    "note": "Only the pages table has been inspected. Other discovered tables are listed as uninspected; do not assume their columns."
+  },
+  "discovered_tables": [
+    "Product",
+    "admin",
+    "booking",
+    "invoice",
+    "pages",
+    "payment_details",
+    "resources"
+  ],
+  "tables": {
+    "pages": {
+      "verified": true,
+      "primary_key": "id",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment"
+        },
+        {
+          "name": "Page_Name",
+          "type": "varchar(255)",
+          "nullable": false
+        },
+        {
+          "name": "Page_Contents",
+          "type": "longtext",
+          "nullable": false
+        },
+        {
+          "name": "link",
+          "type": "varchar(255)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "icon",
+          "type": "varchar(255)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "parent",
+          "type": "varchar(255)",
+          "nullable": false
+        },
+        {
+          "name": "HasChild",
+          "type": "int(11)",
+          "nullable": false
+        },
+        {
+          "name": "type",
+          "type": "varchar(255)",
+          "nullable": false
+        },
+        {
+          "name": "Cover_Photo",
+          "type": "varchar(255)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "Description",
+          "type": "varchar(1000)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "styles_css",
+          "type": "longtext",
+          "nullable": false
+        },
+        {
+          "name": "script_js",
+          "type": "longtext",
+          "nullable": false
+        },
+        {
+          "name": "Status",
+          "type": "int(11)",
+          "nullable": false
+        },
+        {
+          "name": "target",
+          "type": "varchar(255)",
+          "nullable": false
+        },
+        {
+          "name": "Date",
+          "type": "varchar(255)",
+          "nullable": false
+        }
+      ]
+    },
+    "Product": {
+      "verified": false
+    },
+    "admin": {
+      "verified": false
+    },
+    "booking": {
+      "verified": false
+    },
+    "invoice": {
+      "verified": false
+    },
+    "payment_details": {
+      "verified": false
+    },
+    "resources": {
+      "verified": false
+    }
+  }
+}
