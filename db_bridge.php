@@ -27,6 +27,14 @@ $authHeader = $_SERVER['HTTP_AUTHORIZATION']
     ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
     ?? $_SERVER['Authorization']
     ?? '';
+
+// Fallback for hosting environments that strip the standard Authorization header.
+if (!$authHeader) {
+    $alternateToken = $_SERVER['HTTP_X_DB_BRIDGE_TOKEN'] ?? '';
+    if (is_string($alternateToken) && $alternateToken !== '') {
+        $authHeader = 'Bearer ' . $alternateToken;
+    }
+}
 if (!$authHeader && function_exists('getallheaders')) {
     $headers = getallheaders();
     $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
