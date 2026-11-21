@@ -58,7 +58,7 @@ jobs:
                (.hero_css | type == "string" and length > 0) and
                (.hero_js | type == "string" and length > 0))
               or
-              (.action == "update_page" and .id == 1 and
+              (.action == "update_page" and (.id == 1 or .id == 6) and
                (.fields | type == "object" and length > 0 and
                 (keys - ["Page_Contents", "styles_css", "script_js"] | length == 0) and
                 all(.[]; type == "string")))
