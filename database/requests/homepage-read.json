@@ -1,4 +1,4 @@
 {
   "action": "select",
-  "sql": "SELECT id, Page_Contents FROM pages WHERE id = 1 LIMIT 1"
+  "sql": "SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1"
 }
