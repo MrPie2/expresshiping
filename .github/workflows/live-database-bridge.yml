@@ -50,6 +50,8 @@ jobs:
               or
               (.action == "upgrade_parcel_overlay" and .id == 6)
               or
+              (.action == "shorten_parcel_rope" and .id == 6)
+              or
               (.action == "fix_career_icons" and .id == 12)
               or
               (.action == "backup_page" and .id == 1)
@@ -246,6 +248,36 @@ jobs:
           html, n = re.subn(r'/\* Floating hanging parcel decoration \*/.*?(?=\n</style>)', css.strip(), html, count=1, flags=re.S)
           if n != 1:
               raise SystemExit("Could not safely locate the existing parcel CSS block.")
+          with open("request.json", "w", encoding="utf-8") as f:
+              json.dump({"action":"update_page","id":6,"fields":{"Page_Contents":html}}, f, ensure_ascii=False)
+          PY
+          fi
+
+
+          if [[ "$action" == "shorten_parcel_rope" ]]; then
+            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE link = \\"header\\" LIMIT 1"}'
+            read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
+            if [[ ! "$read_status" =~ ^2[0-9][0-9]$ ]]; then
+              echo "::error::Shared header read failed with HTTP $read_status."
+              exit 1
+            fi
+            jq -e '.ok == true and (.rows | length == 1)' current.json >/dev/null
+            python3 - <<'PY'
+          import json, re
+          with open("current.json", encoding="utf-8") as f:
+              row = json.load(f)["rows"][0]
+          html = row["Page_Contents"] or ""
+          if 'class="eh-floating-parcel"' not in html:
+              raise SystemExit("Floating parcel overlay not found; no update sent.")
+          css_start = html.find("/* Floating hanging parcel decoration */")
+          css_end = html.find("</style>", css_start)
+          if css_start < 0 or css_end < 0:
+              raise SystemExit("Parcel overlay CSS block not found; no update sent.")
+          css = html[css_start:css_end]
+          css_new, count = re.subn(r'height:60vh', 'height:40vh', css)
+          if count < 1:
+              raise SystemExit("Expected 60vh rope height was not found; no update sent.")
+          html = html[:css_start] + css_new + html[css_end:]
           with open("request.json", "w", encoding="utf-8") as f:
               json.dump({"action":"update_page","id":6,"fields":{"Page_Contents":html}}, f, ensure_ascii=False)
           PY
