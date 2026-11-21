@@ -50,6 +50,11 @@ jobs:
               or
               (.action == "select" and
                .sql == "SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1")
+              or
+              (.action == "update_page" and .id == 1 and
+               (.fields | type == "object" and length > 0 and
+                (keys - ["Page_Contents", "styles_css", "script_js"] | length == 0) and
+                all(.[]; type == "string")))
             )
           ' request.json >/dev/null
           echo "Request validated."
