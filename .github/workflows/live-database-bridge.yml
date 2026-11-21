@@ -46,6 +46,8 @@ jobs:
             (
               (.action == "ping")
               or
+              (.action == "fix_career_icons" and .id == 12)
+              or
               (.action == "backup_page" and .id == 1)
               or
               (.action == "select" and
@@ -79,6 +81,41 @@ jobs:
           echo "::add-mask::$DB_BRIDGE_TOKEN"
 
           action="$(jq -r '.action' request.json)"
+          if [[ "$action" == "fix_career_icons" ]]; then
+            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE link = \\"career\\" LIMIT 1"}'
+            read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
+            if [[ ! "$read_status" =~ ^2[0-9][0-9]$ ]]; then
+              echo "::error::Careers page read failed with HTTP $read_status."
+              exit 1
+            fi
+            jq -e '.ok == true and (.rows | length == 1)' current.json >/dev/null
+            python3 - <<'PY'
+          import json, re
+          with open("current.json", encoding="utf-8") as f:
+              row = json.load(f)["rows"][0]
+          html = row["Page_Contents"]
+          icons = {
+              "bi bi-airplane": "fa-solid fa-plane",
+              "bi bi-arrow-down-right": "fa-solid fa-arrow-down-right",
+              "bi bi-arrow-right": "fa-solid fa-arrow-right",
+              "bi bi-arrow-up-right": "fa-solid fa-arrow-up-right",
+              "bi bi-box-seam": "fa-solid fa-box",
+              "bi bi-briefcase": "fa-solid fa-briefcase",
+              "bi bi-geo-alt": "fa-solid fa-location-dot",
+              "bi bi-globe-americas": "fa-solid fa-earth-americas",
+              "bi bi-globe2": "fa-solid fa-earth-americas",
+              "bi bi-handshake": "fa-solid fa-handshake",
+              "bi bi-info-circle": "fa-solid fa-circle-info",
+              "bi bi-lightbulb": "fa-solid fa-lightbulb",
+              "bi bi-people": "fa-solid fa-people-group",
+          }
+          for old, new in icons.items():
+              html = html.replace('class="' + old + '"', 'class="' + new + '"')
+          with open("request.json", "w", encoding="utf-8") as f:
+              json.dump({"action":"update_page","id":12,"fields":{"Page_Contents":html}}, f, ensure_ascii=False)
+          PY
+          fi
+
           if [[ "$action" == "replace_homepage_hero" ]]; then
             read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1"}'
             read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
