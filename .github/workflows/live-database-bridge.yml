@@ -82,7 +82,7 @@ jobs:
 
           action="$(jq -r '.action' request.json)"
           if [[ "$action" == "fix_career_icons" ]]; then
-            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE link = \\"career\\" LIMIT 1"}'
+            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE link = \"career\" LIMIT 1"}'
             read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
             if [[ ! "$read_status" =~ ^2[0-9][0-9]$ ]]; then
               echo "::error::Careers page read failed with HTTP $read_status."
