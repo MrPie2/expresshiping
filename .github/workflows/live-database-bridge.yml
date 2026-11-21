@@ -52,6 +52,8 @@ jobs:
               or
               (.action == "shorten_parcel_rope" and .id == 6)
               or
+              (.action == "replace_air_carousel_image" and .id == 1)
+              or
               (.action == "fix_career_icons" and .id == 12)
               or
               (.action == "backup_page" and .id == 1)
@@ -280,6 +282,31 @@ jobs:
           html = html[:css_start] + css_new + html[css_end:]
           with open("request.json", "w", encoding="utf-8") as f:
               json.dump({"action":"update_page","id":6,"fields":{"Page_Contents":html}}, f, ensure_ascii=False)
+          PY
+          fi
+
+
+          if [[ "$action" == "replace_air_carousel_image" ]]; then
+            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1"}'
+            read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
+            if [[ ! "$read_status" =~ ^2[0-9][0-9]$ ]]; then
+              echo "::error::Homepage read failed with HTTP $read_status."
+              exit 1
+            fi
+            jq -e '.ok == true and (.rows | length == 1)' current.json >/dev/null
+            python3 - <<'PY'
+          import json
+          with open("current.json", encoding="utf-8") as f:
+              row = json.load(f)["rows"][0]
+          html = row["Page_Contents"] or ""
+          old = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=2000&q=88"
+          new = "https://images.pexels.com/photos/11242682/pexels-photo-11242682.jpeg?auto=compress&dpr=1&h=750&w=1260"
+          if old not in html:
+              raise SystemExit("Expected first carousel image URL not found; no update sent.")
+          html = html.replace(old, new, 1)
+          html = html.replace('alt="Commercial aircraft flying above the clouds"', 'alt="Full cargo aircraft parked on an airport tarmac"', 1)
+          with open("request.json", "w", encoding="utf-8") as f:
+              json.dump({"action":"update_page","id":1,"fields":{"Page_Contents":html}}, f, ensure_ascii=False)
           PY
           fi
 
