@@ -23,7 +23,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     bridgeRespond(405, ['ok' => false, 'error' => 'POST requests only.']);
 }
 
-$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+$authHeader = $_SERVER['HTTP_AUTHORIZATION']
+    ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+    ?? $_SERVER['Authorization']
+    ?? '';
 if (!$authHeader && function_exists('getallheaders')) {
     $headers = getallheaders();
     $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
