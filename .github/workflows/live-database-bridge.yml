@@ -1,0 +1,66 @@
+name: Live Database Bridge
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_json:
+        description: 'JSON request for db_bridge.php, e.g. {"action":"ping"}'
+        required: true
+        type: string
+        default: '{"action":"ping"}'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: expresshipping-live-db-bridge
+  cancel-in-progress: false
+
+jobs:
+  database-request:
+    name: Execute authenticated database request
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Validate request
+        env:
+          REQUEST_JSON: ${{ inputs.request_json }}
+        run: |
+          set -euo pipefail
+          echo "$REQUEST_JSON" | jq -e '
+            type == "object" and
+            (.action | type == "string") and
+            (.action as $a | ["ping","tables","describe","select","backup_page","update_page"] | index($a) != null)
+          ' >/dev/null
+          echo "Request JSON is valid and action is allowed."
+
+      - name: Call live database bridge
+        env:
+          DB_BRIDGE_URL: ${{ secrets.DB_BRIDGE_URL }}
+          DB_BRIDGE_TOKEN: ${{ secrets.DB_BRIDGE_TOKEN }}
+          REQUEST_JSON: ${{ inputs.request_json }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$DB_BRIDGE_URL" || -z "$DB_BRIDGE_TOKEN" ]]; then
+            echo "::error::Configure DB_BRIDGE_URL and DB_BRIDGE_TOKEN in repository Actions secrets."
+            exit 1
+          fi
+          echo "::add-mask::$DB_BRIDGE_TOKEN"
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$REQUEST_JSON")"
+          echo "HTTP status: $status"
+          echo '### Database bridge response' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat "$response_file" | tee /dev/stderr >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if [[ ! "$status" =~ ^2[0-9][0-9]$ ]]; then
+            echo "::error::Database bridge returned HTTP $status."
+            exit 1
+          fi
+          jq -e '.ok == true' "$response_file" >/dev/null || {
+            echo "::error::Database bridge did not confirm success."
+            exit 1
+          }
+          echo "Database bridge confirmed success."
