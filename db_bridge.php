@@ -3,7 +3,7 @@
  * Expresshipping database bridge.
  * Keep this endpoint behind HTTPS. Keep connect.php OUTSIDE public_html.
  * Define $DB_BRIDGE_TOKEN (at least 32 characters) in that protected file.
- * It must create a mysqli connection in $conn, $mysqli, $con, or $connection.
+ * It must create a mysqli connection in $Conn, $conn, $mysqli, $con, or $connection.
  * Default protected file: /home/CPANEL_USER/connect.php
  */
 declare(strict_types=1);
@@ -58,7 +58,7 @@ if (!hash_equals($expectedToken, $providedToken)) {
 }
 
 $db = null;
-foreach (['conn', 'mysqli', 'con', 'connection'] as $variableName) {
+foreach (['Conn', 'conn', 'mysqli', 'con', 'connection'] as $variableName) {
     if (isset($$variableName) && $$variableName instanceof mysqli) {
         $db = $$variableName;
         break;
