@@ -255,7 +255,7 @@ jobs:
 
 
           if [[ "$action" == "shorten_parcel_rope" ]]; then
-            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE link = \\"header\\" LIMIT 1"}'
+            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE link = \"header\" LIMIT 1"}'
             read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
             if [[ ! "$read_status" =~ ^2[0-9][0-9]$ ]]; then
               echo "::error::Shared header read failed with HTTP $read_status."
