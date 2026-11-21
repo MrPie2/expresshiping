@@ -1,4 +1,5 @@
 {
   "action": "fix_career_icons",
-  "id": 12
+  "id": 12,
+  "retry": 1
 }
