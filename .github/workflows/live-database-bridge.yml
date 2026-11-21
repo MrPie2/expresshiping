@@ -53,6 +53,11 @@ jobs:
               or
               (.action == "prepend_page_text" and .id == 1 and (.text | type == "string" and length > 0))
               or
+              (.action == "replace_homepage_hero" and .id == 1 and
+               (.hero_html | type == "string" and length > 0) and
+               (.hero_css | type == "string" and length > 0) and
+               (.hero_js | type == "string" and length > 0))
+              or
               (.action == "update_page" and .id == 1 and
                (.fields | type == "object" and length > 0 and
                 (keys - ["Page_Contents", "styles_css", "script_js"] | length == 0) and
@@ -74,6 +79,39 @@ jobs:
           echo "::add-mask::$DB_BRIDGE_TOKEN"
 
           action="$(jq -r '.action' request.json)"
+          if [[ "$action" == "replace_homepage_hero" ]]; then
+            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1"}'
+            read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
+            if [[ ! "$read_status" =~ ^2[0-9][0-9]$ ]]; then
+              echo "::error::Homepage read failed with HTTP $read_status."
+              exit 1
+            fi
+            jq -e '.ok == true and (.rows | length == 1)' current.json >/dev/null
+            python3 - <<'PY'
+          import json, re
+          with open("current.json", encoding="utf-8") as f:
+              current = json.load(f)["rows"][0]
+          with open("request.json", encoding="utf-8") as f:
+              request = json.load(f)
+          html = current["Page_Contents"]
+          html = re.sub(r"^God is good\\r?\\n", "", html, count=1)
+          start = html.find('<section class="eh-hero">')
+          if start < 0:
+              raise SystemExit("Could not locate the existing homepage hero section; no update was sent.")
+          end_marker = "</section>"
+          end = html.find(end_marker, start)
+          if end < 0:
+              raise SystemExit("Could not locate the end of the existing homepage hero section; no update was sent.")
+          end += len(end_marker)
+          html = html[:start] + request["hero_html"] + html[end:]
+          css = current.get("styles_css") or ""
+          css += "\\n\\n/* Expresshiping homepage advertising carousel */\\n" + request["hero_css"]
+          js = request["hero_js"]
+          with open("request.json", "w", encoding="utf-8") as f:
+              json.dump({"action":"update_page","id":1,"fields":{"Page_Contents":html,"styles_css":css,"script_js":js}}, f, ensure_ascii=False)
+          PY
+          fi
+
           if [[ "$action" == "prepend_page_text" ]]; then
             read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1"}'
             read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
