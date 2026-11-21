@@ -48,6 +48,8 @@ jobs:
               or
               (.action == "add_parcel_overlay" and .id == 6)
               or
+              (.action == "upgrade_parcel_overlay" and .id == 6)
+              or
               (.action == "fix_career_icons" and .id == 12)
               or
               (.action == "backup_page" and .id == 1)
@@ -170,6 +172,80 @@ jobs:
           html = html.replace("</header>", "</header>\n" + overlay, 1)
           pos = html.rfind("</style>")
           html = html[:pos] + css + "\n" + html[pos:]
+          with open("request.json", "w", encoding="utf-8") as f:
+              json.dump({"action":"update_page","id":6,"fields":{"Page_Contents":html}}, f, ensure_ascii=False)
+          PY
+          fi
+
+          if [[ "$action" == "upgrade_parcel_overlay" ]]; then
+            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE link = \\"header\\" LIMIT 1"}'
+            read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
+            if [[ ! "$read_status" =~ ^2[0-9][0-9]$ ]]; then
+              echo "::error::Shared header read failed with HTTP $read_status."
+              exit 1
+            fi
+            jq -e '.ok == true and (.rows | length == 1)' current.json >/dev/null
+            python3 - <<'PY'
+          import json, re
+          with open("current.json", encoding="utf-8") as f:
+              row = json.load(f)["rows"][0]
+          html = row["Page_Contents"] or ""
+          if 'class="eh-floating-parcel"' not in html or "/* Floating hanging parcel decoration */" not in html:
+              raise SystemExit("Existing parcel overlay was not found; refusing to make an unrelated change.")
+          start = html.index('<div class="eh-floating-parcel"')
+          end = html.index('</div>', start) + len('</div>')
+          overlay = r"""
+          <div class="eh-floating-parcel" aria-hidden="true">
+            <span class="eh-parcel-thread"></span>
+            <span class="eh-parcel-knot"></span>
+            <svg class="eh-parcel-art" viewBox="0 0 180 166" role="presentation" focusable="false">
+              <defs>
+                <linearGradient id="ehCartonFront" x1="0" y1="0" x2="0.15" y2="1"><stop offset="0" stop-color="#d9a66c"/><stop offset="1" stop-color="#a96f3d"/></linearGradient>
+                <linearGradient id="ehCartonSide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c58b50"/><stop offset="1" stop-color="#80502e"/></linearGradient>
+                <linearGradient id="ehCartonFlap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#edc58f"/><stop offset="1" stop-color="#bd8954"/></linearGradient>
+                <linearGradient id="ehPackingTape" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f8e7c5"/><stop offset=".5" stop-color="#fff3d9"/><stop offset="1" stop-color="#d9b783"/></linearGradient>
+                <filter id="ehBoxShadow" x="-30%" y="-30%" width="160%" height="170%"><feGaussianBlur stdDeviation="4"/></filter>
+              </defs>
+              <ellipse cx="91" cy="151" rx="65" ry="10" fill="#263746" opacity=".18" filter="url(#ehBoxShadow)"/>
+              <!-- Open carton flaps, visible around the taped top -->
+              <path d="M24 49 72 25 91 40 46 69Z" fill="url(#ehCartonFlap)" stroke="#8f5d35" stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="M91 40 135 17 164 39 111 68Z" fill="#e5b77f" stroke="#8f5d35" stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="M24 49 9 27 63 7 82 27Z" fill="#c58d56" stroke="#8f5d35" stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="M111 68 164 39 173 61 119 91Z" fill="#d6a16a" stroke="#8f5d35" stroke-width="1.8" stroke-linejoin="round"/>
+              <!-- Main carton body -->
+              <path d="M24 49 91 83 91 153 24 118Z" fill="url(#ehCartonFront)" stroke="#80502e" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M91 83 164 46 164 117 91 153Z" fill="url(#ehCartonSide)" stroke="#704528" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M24 49 91 14 164 46 91 83Z" fill="#d8a46c" stroke="#80502e" stroke-width="2" stroke-linejoin="round"/>
+              <!-- Top seam and wide packing tape -->
+              <path d="M91 14 91 83" stroke="#98663c" stroke-width="1.7" opacity=".8"/>
+              <path d="M78 20 105 32 105 75 78 62Z" fill="url(#ehPackingTape)" stroke="#c4a477" stroke-width="1.2"/>
+              <path d="M78 20 91 13 118 26 105 32Z" fill="#fff0d0" stroke="#c4a477" stroke-width="1.1"/>
+              <path d="M78 62 91 69 105 62" fill="none" stroke="#b68d5b" stroke-width="1.2" opacity=".75"/>
+              <!-- Corrugation folds, carton edges and shipping label -->
+              <path d="M30 55 30 113M37 59 37 117" stroke="#f0c58f" stroke-width="1" opacity=".28"/>
+              <path d="M158 50 158 113" stroke="#f5d5a8" stroke-width="1.2" opacity=".3"/>
+              <path d="M111 91 150 71 150 98 111 118Z" fill="#fffaf0" stroke="#d9c6a9" stroke-width="1.3"/>
+              <path d="M118 94 141 82M118 99 139 88M118 104 132 97" stroke="#927657" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M117 111 140 99" stroke="#252525" stroke-width="2.2" stroke-dasharray="2 2"/>
+              <path d="M91 83 91 153" stroke="#f3d0a1" stroke-width="2" opacity=".35"/>
+              <path d="M24 49 91 83 164 46" fill="none" stroke="#f4d4a8" stroke-width="1.1" opacity=".45"/>
+            </svg>
+          </div>
+          """
+          html = html[:start] + overlay + html[end:]
+          css = r"""
+          /* Floating hanging parcel decoration */
+          .eh-floating-parcel{position:fixed;top:0;right:clamp(22px,8vw,124px);z-index:1002;width:180px;display:flex;flex-direction:column;align-items:center;transform-origin:50% 0;animation:ehParcelSwing 5.8s ease-in-out infinite alternate;pointer-events:none;user-select:none;filter:drop-shadow(0 13px 13px rgba(34,47,57,.2))}
+          .eh-parcel-thread{display:block;width:2px;height:60vh;background:linear-gradient(180deg,rgba(91,105,115,.38),rgba(91,105,115,.9));box-shadow:0 0 2px rgba(255,255,255,.9)}
+          .eh-parcel-knot{display:block;width:8px;height:8px;margin-top:-1px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e6c28f,#89572f 75%);box-shadow:0 0 0 2px rgba(255,255,255,.7)}
+          .eh-parcel-art{display:block;width:176px;height:162px;margin-top:-2px;overflow:visible}
+          @keyframes ehParcelSwing{0%{transform:rotate(-4.5deg)}100%{transform:rotate(4.5deg)}}
+          @media(max-width:767.98px){.eh-floating-parcel{right:12px;width:126px}.eh-parcel-thread{height:60vh}.eh-parcel-art{width:122px;height:112px}}
+          @media(prefers-reduced-motion:reduce){.eh-floating-parcel{animation:none}}
+          """
+          html, n = re.subn(r'/\* Floating hanging parcel decoration \*/.*?(?=\n</style>)', css.strip(), html, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit("Could not safely locate the existing parcel CSS block.")
           with open("request.json", "w", encoding="utf-8") as f:
               json.dump({"action":"update_page","id":6,"fields":{"Page_Contents":html}}, f, ensure_ascii=False)
           PY
