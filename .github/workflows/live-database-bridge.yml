@@ -46,6 +46,8 @@ jobs:
             (
               (.action == "ping")
               or
+              (.action == "add_parcel_overlay" and .id == 6)
+              or
               (.action == "fix_career_icons" and .id == 12)
               or
               (.action == "backup_page" and .id == 1)
@@ -113,6 +115,63 @@ jobs:
               html = html.replace('class="' + old + '"', 'class="' + new + '"')
           with open("request.json", "w", encoding="utf-8") as f:
               json.dump({"action":"update_page","id":12,"fields":{"Page_Contents":html}}, f, ensure_ascii=False)
+          PY
+          fi
+
+          if [[ "$action" == "add_parcel_overlay" ]]; then
+            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE link = \"header\" LIMIT 1"}'
+            read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
+            if [[ ! "$read_status" =~ ^2[0-9][0-9]$ ]]; then
+              echo "::error::Shared header read failed with HTTP $read_status."
+              exit 1
+            fi
+            jq -e '.ok == true and (.rows | length == 1)' current.json >/dev/null
+            python3 - <<'PY'
+          import json
+          with open("current.json", encoding="utf-8") as f:
+              row = json.load(f)["rows"][0]
+          html = row["Page_Contents"] or ""
+          if "eh-floating-parcel" in html:
+              raise SystemExit("Floating parcel overlay already exists; refusing to add a duplicate.")
+          overlay = r"""
+          <div class="eh-floating-parcel" aria-hidden="true">
+            <span class="eh-parcel-thread"></span><span class="eh-parcel-knot"></span>
+            <svg class="eh-parcel-art" viewBox="0 0 88 82" role="presentation" focusable="false">
+              <defs>
+                <linearGradient id="ehParcelTop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7d9a4"/><stop offset="1" stop-color="#dba766"/></linearGradient>
+                <linearGradient id="ehParcelLeft" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d99b57"/><stop offset="1" stop-color="#b97739"/></linearGradient>
+                <linearGradient id="ehParcelRight" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c88745"/><stop offset="1" stop-color="#965b2d"/></linearGradient>
+              </defs>
+              <path d="M44 5 82 25 44 45 6 25Z" fill="url(#ehParcelTop)" stroke="#9e6838" stroke-width="1.4" stroke-linejoin="round"/>
+              <path d="M6 25 44 45 44 77 6 56Z" fill="url(#ehParcelLeft)" stroke="#965f32" stroke-width="1.4" stroke-linejoin="round"/>
+              <path d="M44 45 82 25 82 56 44 77Z" fill="url(#ehParcelRight)" stroke="#87512a" stroke-width="1.4" stroke-linejoin="round"/>
+              <path d="M36 9.2 51 17.1 36 25.1 21 17.1Z" fill="#f6e1bf" opacity=".95"/>
+              <path d="M36 25.1 51 17.1 51 47.8 36 55.7Z" fill="#f1d7ad" opacity=".9"/>
+              <path d="M44 45 44 77" stroke="#f1d7ad" stroke-width="3.4" opacity=".9"/>
+              <path d="M6 25 44 45 82 25" fill="none" stroke="#f6d8a9" stroke-width="1.2" opacity=".8"/>
+              <path d="M54 52 72 42" stroke="#f5d6a7" stroke-width="2.4" stroke-linecap="round" opacity=".75"/>
+              <rect x="53" y="55" width="19" height="11" rx="2" fill="#fff8ed" transform="rotate(-27 53 55)"/>
+              <path d="M58 58 67 53M58 61 64 58" stroke="#9c7048" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          """
+          css = r"""
+          /* Floating hanging parcel decoration */
+          .eh-floating-parcel{position:fixed;top:0;right:clamp(18px,7.5vw,112px);z-index:1002;width:88px;display:flex;flex-direction:column;align-items:center;transform-origin:50% 0;animation:ehParcelSwing 5.2s ease-in-out infinite alternate;pointer-events:none;user-select:none;filter:drop-shadow(0 9px 9px rgba(34,47,57,.13))}
+          .eh-parcel-thread{display:block;width:1.5px;height:112px;background:linear-gradient(180deg,rgba(91,105,115,.48),rgba(91,105,115,.82));box-shadow:0 0 1px rgba(255,255,255,.8)}
+          .eh-parcel-knot{display:block;width:6px;height:6px;margin-top:-1px;border-radius:50%;background:#a36b39;box-shadow:0 0 0 2px rgba(255,255,255,.7)}
+          .eh-parcel-art{display:block;width:82px;height:77px;margin-top:-1px;overflow:visible}
+          @keyframes ehParcelSwing{0%{transform:rotate(-5deg)}100%{transform:rotate(5deg)}}
+          @media(max-width:767.98px){.eh-floating-parcel{right:14px;width:72px}.eh-parcel-art{width:68px;height:64px}.eh-parcel-thread{height:91px}}
+          @media(prefers-reduced-motion:reduce){.eh-floating-parcel{animation:none}}
+          """
+          if "</header>" not in html or "</style>" not in html:
+              raise SystemExit("Expected shared header markup/style was not found; no database update sent.")
+          html = html.replace("</header>", "</header>\n" + overlay, 1)
+          pos = html.rfind("</style>")
+          html = html[:pos] + css + "\n" + html[pos:]
+          with open("request.json", "w", encoding="utf-8") as f:
+              json.dump({"action":"update_page","id":6,"fields":{"Page_Contents":html}}, f, ensure_ascii=False)
           PY
           fi
 
