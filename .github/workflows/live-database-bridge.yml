@@ -1,11 +1,14 @@
 name: Live Database Bridge
 
 on:
+  push:
+    paths:
+      - 'database/requests/homepage-read.json'
   workflow_dispatch:
     inputs:
       request_json:
-        description: 'JSON request for db_bridge.php, e.g. {"action":"ping"}'
-        required: true
+        description: 'JSON request (manual runs only)'
+        required: false
         type: string
         default: '{"action":"ping"}'
 
@@ -22,28 +25,39 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Validate request
+      - name: Check out request file
+        if: github.event_name == 'push'
+        uses: actions/checkout@v4
+
+      - name: Prepare request
+        id: request
         env:
-          REQUEST_JSON: ${{ inputs.request_json }}
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_REQUEST: ${{ inputs.request_json }}
         run: |
           set -euo pipefail
-          echo "$REQUEST_JSON" | jq -e '
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            cp database/requests/homepage-read.json request.json
+          else
+            printf '%s' "$MANUAL_REQUEST" > request.json
+          fi
+          jq -e '
             type == "object" and
-            (.action | type == "string") and
             (
-              (.action as $a | ["ping","backup_page","update_page"] | index($a) != null)
+              (.action == "ping")
+              or
+              (.action == "backup_page" and .id == 1)
               or
               (.action == "select" and
                .sql == "SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1")
             )
-          ' >/dev/null
-          echo "Request JSON is valid and action is allowed."
+          ' request.json >/dev/null
+          echo "Request validated."
 
       - name: Call live database bridge
         env:
           DB_BRIDGE_URL: ${{ secrets.DB_BRIDGE_URL }}
           DB_BRIDGE_TOKEN: ${{ secrets.DB_BRIDGE_TOKEN }}
-          REQUEST_JSON: ${{ inputs.request_json }}
         run: |
           set -euo pipefail
           if [[ -z "$DB_BRIDGE_URL" || -z "$DB_BRIDGE_TOKEN" ]]; then
@@ -51,18 +65,23 @@ jobs:
             exit 1
           fi
           echo "::add-mask::$DB_BRIDGE_TOKEN"
-          response_file="$(mktemp)"
-          trap 'rm -f "$response_file"' EXIT
-          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$REQUEST_JSON")"
+          status="$(curl --silent --show-error --output response.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary @request.json)"
           echo "HTTP status: $status"
-          echo '### Database bridge result' >> "$GITHUB_STEP_SUMMARY"
-          jq . "$response_file" >> "$GITHUB_STEP_SUMMARY" || true
           if [[ ! "$status" =~ ^2[0-9][0-9]$ ]]; then
             echo "::error::Database bridge returned HTTP $status."
             exit 1
           fi
-          jq -e '.ok == true' "$response_file" >/dev/null || {
+          jq -e '.ok == true' response.json >/dev/null || {
             echo "::error::Database bridge did not confirm success."
             exit 1
           }
+          jq -c '{ok, message, record_id, backup_id, updated_fields, affected_rows, error}' response.json >> "$GITHUB_STEP_SUMMARY"
           echo "Database bridge confirmed success."
+
+      - name: Store private response artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-database-response
+          path: response.json
+          retention-days: 1
+          if-no-files-found: error
