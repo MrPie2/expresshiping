@@ -33,7 +33,7 @@ if (!preg_match('/^Bearer\s+(.+)$/i', trim($authHeader), $matches)) {
 }
 $providedToken = trim($matches[1]);
 
-$connectionFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'connect.php';
+$connectionFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Connect.php';
 $environmentPath = getenv('DB_BRIDGE_CONNECT_FILE');
 if (is_string($environmentPath) && $environmentPath !== '') {
     $connectionFile = $environmentPath;

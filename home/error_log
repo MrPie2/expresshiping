@@ -3126,3 +3126,13 @@ Stack trace:
 #0 /home/expressh/public_html/home/getAddress.php(86): pathinfo()
 #1 {main}
   thrown in /home/expressh/public_html/home/getAddress.php on line 86
+[21-Nov-2026 15:36:57 UTC] PHP Warning:  include(../Connect.php): Failed to open stream: No such file or directory in /home/expressh/public_html/home/page.php on line 2
+[21-Nov-2026 15:36:57 UTC] PHP Warning:  include(../Connect.php): Failed to open stream: No such file or directory in /home/expressh/public_html/home/page.php on line 2
+[21-Nov-2026 15:36:57 UTC] PHP Warning:  include(): Failed opening '../Connect.php' for inclusion (include_path='.:/opt/alt/php84/usr/share/pear:/opt/alt/php84/usr/share/php:/usr/share/pear:/usr/share/php') in /home/expressh/public_html/home/page.php on line 2
+[21-Nov-2026 15:36:57 UTC] PHP Warning:  Undefined variable $Conn in /home/expressh/public_html/home/page.php on line 30
+[21-Nov-2026 15:36:57 UTC] PHP Fatal error:  Uncaught TypeError: mysqli_query(): Argument #1 ($mysql) must be of type mysqli, null given in /home/expressh/public_html/home/page.php:30
+Stack trace:
+#0 /home/expressh/public_html/home/page.php(30): mysqli_query()
+#1 /home/expressh/public_html/home/Index.php(1): include('/home/expressh/...')
+#2 {main}
+  thrown in /home/expressh/public_html/home/page.php on line 30
