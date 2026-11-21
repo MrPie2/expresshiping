@@ -30,7 +30,12 @@ jobs:
           echo "$REQUEST_JSON" | jq -e '
             type == "object" and
             (.action | type == "string") and
-            (.action as $a | ["ping","backup_page","update_page"] | index($a) != null)
+            (
+              (.action as $a | ["ping","backup_page","update_page"] | index($a) != null)
+              or
+              (.action == "select" and
+               .sql == "SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1")
+            )
           ' >/dev/null
           echo "Request JSON is valid and action is allowed."
 
@@ -51,7 +56,7 @@ jobs:
           status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$REQUEST_JSON")"
           echo "HTTP status: $status"
           echo '### Database bridge result' >> "$GITHUB_STEP_SUMMARY"
-          jq -c '{ok, message, record_id, backup_id, updated_fields, affected_rows, error}' "$response_file" >> "$GITHUB_STEP_SUMMARY" || true
+          jq . "$response_file" >> "$GITHUB_STEP_SUMMARY" || true
           if [[ ! "$status" =~ ^2[0-9][0-9]$ ]]; then
             echo "::error::Database bridge returned HTTP $status."
             exit 1
