@@ -51,6 +51,8 @@ jobs:
               (.action == "select" and
                .sql == "SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1")
               or
+              (.action == "prepend_page_text" and .id == 1 and (.text | type == "string" and length > 0))
+              or
               (.action == "update_page" and .id == 1 and
                (.fields | type == "object" and length > 0 and
                 (keys - ["Page_Contents", "styles_css", "script_js"] | length == 0) and
@@ -70,6 +72,23 @@ jobs:
             exit 1
           fi
           echo "::add-mask::$DB_BRIDGE_TOKEN"
+
+          action="$(jq -r '.action' request.json)"
+          if [[ "$action" == "prepend_page_text" ]]; then
+            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1"}'
+            read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
+            if [[ ! "$read_status" =~ ^2[0-9][0-9]$ ]]; then
+              echo "::error::Homepage read failed with HTTP $read_status."
+              exit 1
+            fi
+            jq -e '.ok == true and (.rows | length == 1)' current.json >/dev/null
+            existing="$(jq -r '.rows[0].Page_Contents' current.json)"
+            prefix="$(jq -r '.text' request.json)"
+            updated="$(printf '%s\n%s' "$prefix" "$existing")"
+            jq -n --arg contents "$updated" '{action:"update_page",id:1,fields:{Page_Contents:$contents}}' > update-request.json
+            mv update-request.json request.json
+          fi
+
           status="$(curl --silent --show-error --output response.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary @request.json)"
           echo "HTTP status: $status"
           if [[ ! "$status" =~ ^2[0-9][0-9]$ ]]; then
