@@ -144,6 +144,7 @@ if (str_starts_with($action, 'admin_')) {
     if (!spin_admin()) spin_json(401, ['ok'=>false,'message'=>'Administrator login required.']);
     if (!spin_csrf_ok($input)) spin_json(403, ['ok'=>false,'message'=>'Security token expired. Refresh the page.']);
     if ($action === 'admin_list') {
+        $Conn->query("UPDATE spin_coupons SET status='expired' WHERE status='active' AND expires_at IS NOT NULL AND expires_at<NOW()");
         $rewards=[]; $res=$Conn->query("SELECT * FROM spin_rewards ORDER BY id DESC");
         while($r=$res->fetch_assoc()) $rewards[]=$r;
         $coupons=[]; $res=$Conn->query("SELECT id,coupon_code,reward_name,phone,status,spun_at,expires_at,redeemed_at FROM spin_coupons ORDER BY id DESC LIMIT 200");
@@ -170,6 +171,7 @@ if (str_starts_with($action, 'admin_')) {
         spin_json($ok?200:500,['ok'=>$ok,'message'=>$ok?'Reward removed.':'Could not remove reward.']);
     }
     if ($action === 'admin_search_coupon') {
+        $Conn->query("UPDATE spin_coupons SET status='expired' WHERE status='active' AND expires_at IS NOT NULL AND expires_at<NOW()");
         $term = '%' . trim((string)($input['query'] ?? '')) . '%';
         $s = $Conn->prepare("SELECT id,coupon_code,reward_name,phone,status,spun_at,expires_at,redeemed_at FROM spin_coupons WHERE coupon_code LIKE ? OR phone LIKE ? ORDER BY id DESC LIMIT 100");
         $s->bind_param('ss',$term,$term); $s->execute(); $rows=[];
