@@ -14,6 +14,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') spin_json(405, ['ok'=>false,'
 require_once __DIR__ . '/../Connect.php';
 if (!isset($Conn) || !($Conn instanceof mysqli)) spin_json(503, ['ok'=>false,'message'=>'Database unavailable']);
 $Conn->set_charset('utf8mb4');
+$rewardTableExistsResult = $Conn->query("SHOW TABLES LIKE 'spin_rewards'");
+$rewardTableExists = $rewardTableExistsResult && $rewardTableExistsResult->num_rows > 0;
 
 $Conn->query("CREATE TABLE IF NOT EXISTS spin_rewards (
  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -50,9 +52,7 @@ $Conn->query("CREATE TABLE IF NOT EXISTS spin_coupons (
  INDEX idx_spin_coupon_expiry (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-$check = $Conn->query("SELECT COUNT(*) AS total FROM spin_rewards");
-$total = $check ? (int)$check->fetch_assoc()['total'] : 0;
-if ($total === 0) {
+if (!$rewardTableExists) {
     $seed = $Conn->prepare("INSERT INTO spin_rewards (name,reward_type,reward_value,probability,expiry_days,is_active) VALUES
       ('5% OFF','percent',5,45,30,1),('10% OFF','percent',10,30,30,1),('15% OFF','percent',15,15,30,1),('Free Shipping','free_shipping',0,10,14,1)");
     if ($seed) { $seed->execute(); $seed->close(); }
