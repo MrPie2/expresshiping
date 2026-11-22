@@ -26,5 +26,5 @@
     <p class="eh-spin-message" id="ehSpinMessage" aria-live="polite">One spin per browser session. Good luck!</p>
   </section>
 </div>
-<script src="assets/js/spin-win.js?v=5" defer></script>
+<script src="assets/js/spin-win.js?v=6" defer></script>
 <?php endif; ?>
