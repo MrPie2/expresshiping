@@ -52,9 +52,27 @@ async function request(data){
 function close(){overlay.classList.remove('is-open');document.body.style.overflow='';}
 document.getElementById('ehSpinClose').addEventListener('click',close);
 overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
-function open(){if(sessionStorage.getItem('ehSpinDismissed')==='1'||sessionStorage.getItem('ehSpinPlayed')==='1')return;overlay.classList.add('is-open');document.body.style.overflow='hidden';}
-setTimeout(open,1800);
-document.getElementById('ehSpinClose').addEventListener('click',()=>sessionStorage.setItem('ehSpinDismissed','1'));
+function open(){overlay.classList.add('is-open');document.body.style.overflow='hidden';}
+function alreadySeen(frequency){
+ if(frequency==='every_visit')return false;
+ if(frequency==='once_browser')return localStorage.getItem('ehSpinDismissed')==='1'||localStorage.getItem('ehSpinPlayed')==='1';
+ return sessionStorage.getItem('ehSpinDismissed')==='1'||sessionStorage.getItem('ehSpinPlayed')==='1';
+}
+async function initialisePopup(){
+ try{
+  const config=await request({action:'popup_config'});
+  const settings=config.settings||{};
+  if(Number(settings.popup_enabled)!==1)return;
+  window.ehSpinFrequency=settings.popup_frequency||'once_session';
+  if(alreadySeen(window.ehSpinFrequency))return;
+  window.setTimeout(open,Math.max(0,Math.min(60000,Number(settings.popup_delay_ms)||0)));
+ }catch(error){say('Spin & Win is temporarily unavailable.');}
+}
+initialisePopup();
+document.getElementById('ehSpinClose').addEventListener('click',()=>{
+ sessionStorage.setItem('ehSpinDismissed','1');
+ if(window.ehSpinFrequency==='once_browser')localStorage.setItem('ehSpinDismissed','1');
+});
 spinBtn.addEventListener('click',async()=>{
  if(spinning)return;spinning=true;spinBtn.disabled=true;spinBtn.textContent='Spinning…';say('Good luck! Your prize is being selected.');
  try{
@@ -74,7 +92,7 @@ claimForm.addEventListener('submit',async e=>{
  try{
   const data=await request({action:'claim',token:spinToken,phone});
   couponText.textContent=data.coupon.coupon_code;result.classList.add('is-visible');
-  prizeText.textContent=data.coupon.reward_name;sessionStorage.setItem('ehSpinPlayed','1');
+  prizeText.textContent=data.coupon.reward_name;sessionStorage.setItem('ehSpinPlayed','1');if(window.ehSpinFrequency==='once_browser')localStorage.setItem('ehSpinPlayed','1');
   say('Save this coupon code and present it to Expresshipping when placing your order.');
   claimForm.style.display='none';
  }catch(error){say(error.message);submit.disabled=false;submit.textContent='Claim my coupon';}
