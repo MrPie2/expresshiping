@@ -14,7 +14,7 @@
     <button type="button" class="eh-spin-action" id="ehSpinButton">Spin the wheel</button>
     <form class="eh-spin-claim" id="ehSpinClaim">
       <label for="ehSpinPhone">Enter your phone number to claim your prize</label>
-      <input type="tel" id="ehSpinPhone" name="phone" autocomplete="tel" placeholder="+234 800 000 0000" maxlength="24" required>
+      <input type="tel" id="ehSpinPhone" name="phone" autocomplete="tel" placeholder="(555) 123-4567" maxlength="24" required>
       <button type="submit" class="eh-spin-action">Claim my coupon</button>
     </form>
     <div class="eh-spin-result" id="ehSpinResult">
