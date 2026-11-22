@@ -4,7 +4,7 @@ session_start();
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
-function spin_json(int $status, array $data): never {
+function spin_json(int $status, array $data): void {
     http_response_code($status);
     echo json_encode($data, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
@@ -35,6 +35,7 @@ $Conn->query("CREATE TABLE IF NOT EXISTS spin_coupons (
  reward_name VARCHAR(120) NOT NULL,
  reward_type VARCHAR(30) NOT NULL,
  reward_value DECIMAL(12,2) NOT NULL DEFAULT 0,
+ expiry_days INT UNSIGNED NOT NULL DEFAULT 30,
  coupon_code VARCHAR(32) NOT NULL UNIQUE,
  spin_token_hash CHAR(64) NOT NULL UNIQUE,
  session_key CHAR(64) NULL UNIQUE,
@@ -107,8 +108,9 @@ if ($action === 'spin') {
         $name = (string)$selected['name'];
         $type = (string)$selected['reward_type'];
         $value = (float)$selected['reward_value'];
-        $insert = $Conn->prepare("INSERT INTO spin_coupons (reward_id,reward_name,reward_type,reward_value,coupon_code,spin_token_hash,session_key) VALUES (?,?,?,?,?,?,?)");
-        $insert->bind_param('isdssss', $rewardId, $name, $type, $value, $code, $tokenHash, $sessionKey);
+        $expiryDays = (int)$selected['expiry_days'];
+        $insert = $Conn->prepare("INSERT INTO spin_coupons (reward_id,reward_name,reward_type,reward_value,expiry_days,coupon_code,spin_token_hash,session_key) VALUES (?,?,?,?,?,?,?,?)");
+        $insert->bind_param('issdisss', $rewardId, $name, $type, $value, $expiryDays, $code, $tokenHash, $sessionKey);
         if (!$insert->execute()) throw new RuntimeException('Could not create your spin record.');
         $insert->close();
         $inc = $Conn->prepare("UPDATE spin_rewards SET issued_count=issued_count+1 WHERE id=?");
@@ -128,7 +130,7 @@ if ($action === 'claim') {
     if (!preg_match('/^[+0-9() .-]{7,24}$/', $phone)) spin_json(422, ['ok'=>false,'message'=>'Enter a valid phone number.']);
     if (!preg_match('/^[a-f0-9]{64}$/', $token)) spin_json(422, ['ok'=>false,'message'=>'Your spin session is invalid. Please spin again.']);
     $hash = hash('sha256', $token);
-    $stmt = $Conn->prepare("UPDATE spin_coupons SET phone=?,claimed_at=NOW(),status=IF(expires_at IS NOT NULL AND expires_at<NOW(),'expired','active'),expires_at=DATE_ADD(NOW(), INTERVAL (SELECT expiry_days FROM spin_rewards WHERE spin_rewards.id=spin_coupons.reward_id) DAY) WHERE spin_token_hash=? AND status='unclaimed' AND session_key=?");
+    $stmt = $Conn->prepare("UPDATE spin_coupons SET phone=?,claimed_at=NOW(),status=IF(expires_at IS NOT NULL AND expires_at<NOW(),'expired','active'),expires_at=DATE_ADD(NOW(), INTERVAL expiry_days DAY) WHERE spin_token_hash=? AND status='unclaimed' AND session_key=?");
     $sessionKey = hash('sha256', session_id());
     $stmt->bind_param('sss', $phone, $hash, $sessionKey);
     $stmt->execute(); $changed = $stmt->affected_rows; $stmt->close();
