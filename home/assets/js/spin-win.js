@@ -1,5 +1,7 @@
 (function(){
 'use strict';
+const scriptUrl=document.currentScript ? document.currentScript.src : window.location.href;
+const apiUrl=new URL('../../spin-api.php',scriptUrl).toString();
 const overlay=document.getElementById('ehSpinOverlay');
 if(!overlay)return;
 const wheel=document.getElementById('ehSpinWheel');
@@ -30,8 +32,22 @@ function drawWheel(segments){
  }
 drawWheel([{name:'5% OFF'},{name:'10% OFF'},{name:'15% OFF'},{name:'FREE SHIPPING'}]);
 async function request(data){
- const response=await fetch('spin-api.php',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(data)});
- const payload=await response.json();if(!response.ok||!payload.ok)throw new Error(payload.message||'Something went wrong.');return payload;
+ let response;
+ try {
+  response=await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},credentials:'same-origin',body:JSON.stringify(data)});
+ } catch(networkError) {
+  throw new Error('Could not reach the Spin & Win server. Check your connection and try again.');
+ }
+ const raw=await response.text();
+ let payload;
+ try { payload=raw ? JSON.parse(raw) : null; }
+ catch(parseError) {
+  const detail=raw.replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi,' ').replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/\\s+/g,' ').trim().slice(0,180);
+  throw new Error('The server returned an invalid response (HTTP '+response.status+'). '+(detail||'The response was empty. Check the PHP error log and database connection.'));
+ }
+ if(!payload||typeof payload!=='object') throw new Error('The server returned an empty response (HTTP '+response.status+'). Check the PHP error log and database connection.');
+ if(!response.ok||!payload.ok) throw new Error(payload.message||'Spin request failed (HTTP '+response.status+').');
+ return payload;
 }
 function close(){overlay.classList.remove('is-open');document.body.style.overflow='';}
 document.getElementById('ehSpinClose').addEventListener('click',close);
