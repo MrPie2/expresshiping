@@ -14,6 +14,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') spin_json(405, ['ok'=>false,'
 require_once __DIR__ . '/../../Connect.php';
 if (!isset($Conn) || !($Conn instanceof mysqli)) spin_json(503, ['ok'=>false,'message'=>'Database unavailable']);
 $Conn->set_charset('utf8mb4');
+$Conn->query("CREATE TABLE IF NOT EXISTS spin_settings (
+ id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+ popup_enabled TINYINT(1) NOT NULL DEFAULT 1,
+ popup_delay_ms INT UNSIGNED NOT NULL DEFAULT 1800,
+ popup_frequency ENUM('every_visit','once_session','once_browser') NOT NULL DEFAULT 'once_session',
+ updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+$Conn->query("INSERT IGNORE INTO spin_settings (id,popup_enabled,popup_delay_ms,popup_frequency) VALUES (1,1,1800,'once_session')");
+
 $rewardTableExistsResult = $Conn->query("SHOW TABLES LIKE 'spin_rewards'");
 $rewardTableExists = $rewardTableExistsResult && $rewardTableExistsResult->num_rows > 0;
 
@@ -77,7 +86,15 @@ function spin_coupon_code(mysqli $db): string {
     return $code;
 }
 
+if ($action === 'popup_config') {
+    $settings = $Conn->query("SELECT popup_enabled,popup_delay_ms,popup_frequency FROM spin_settings WHERE id=1")->fetch_assoc();
+    spin_json(200, ['ok'=>true,'settings'=>$settings ?: ['popup_enabled'=>1,'popup_delay_ms'=>1800,'popup_frequency'=>'once_session']]);
+}
+
 if ($action === 'spin') {
+    $popup = $Conn->query("SELECT popup_enabled FROM spin_settings WHERE id=1")->fetch_assoc();
+    if (!$popup || (int)$popup['popup_enabled'] !== 1) spin_json(403, ['ok'=>false,'message'=>'Spin & Win is currently unavailable.']);
+
     $sessionKey = hash('sha256', session_id());
     $existing = $Conn->prepare("SELECT spin_token_hash,reward_name,reward_type,reward_value,status FROM spin_coupons WHERE session_key=? LIMIT 1");
     $existing->bind_param('s', $sessionKey); $existing->execute();
@@ -143,6 +160,20 @@ if ($action === 'claim') {
 if (str_starts_with($action, 'admin_')) {
     if (!spin_admin()) spin_json(401, ['ok'=>false,'message'=>'Administrator login required.']);
     if (!spin_csrf_ok($input)) spin_json(403, ['ok'=>false,'message'=>'Security token expired. Refresh the page.']);
+    if ($action === 'admin_save_settings') {
+        $enabled = !empty($input['popup_enabled']) ? 1 : 0;
+        $delay = max(0, min(60000, (int)($input['popup_delay_ms'] ?? 1800)));
+        $frequency = (string)($input['popup_frequency'] ?? 'once_session');
+        if (!in_array($frequency, ['every_visit','once_session','once_browser'], true)) spin_json(422, ['ok'=>false,'message'=>'Invalid popup frequency.']);
+        $s = $Conn->prepare("UPDATE spin_settings SET popup_enabled=?,popup_delay_ms=?,popup_frequency=? WHERE id=1");
+        $s->bind_param('iis', $enabled, $delay, $frequency);
+        $ok = $s->execute(); $s->close();
+        spin_json($ok?200:500, ['ok'=>$ok,'message'=>$ok?'Popup settings saved.':'Could not save popup settings.']);
+    }
+    if ($action === 'admin_get_settings') {
+        $settings = $Conn->query("SELECT popup_enabled,popup_delay_ms,popup_frequency FROM spin_settings WHERE id=1")->fetch_assoc();
+        spin_json(200, ['ok'=>true,'settings'=>$settings]);
+    }
     if ($action === 'admin_list') {
         $Conn->query("UPDATE spin_coupons SET status='expired' WHERE status='active' AND expires_at IS NOT NULL AND expires_at<NOW()");
         $rewards=[]; $res=$Conn->query("SELECT * FROM spin_rewards ORDER BY id DESC");
