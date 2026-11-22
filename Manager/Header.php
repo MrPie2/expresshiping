@@ -22,6 +22,9 @@
         <li class="nav-item">
           <a class="nav-link" href="Resources.php">Resources</a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="spin-win.php">Spin &amp; Win</a>
+        </li>
        <li class="nav-item">
           <a class="nav-link" href="Logout.php">Logout</a>
         </li>
