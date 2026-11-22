@@ -5,8 +5,6 @@ const scriptUrl=scriptTag ? scriptTag.src : new URL('assets/js/spin-win.js',wind
 const apiUrl=new URL('../../spin-api.php',scriptUrl).toString();
 const overlay=document.getElementById('ehSpinOverlay');
 if(!overlay)return;
-// TEMPORARY DIAGNOSTIC: force the popup open to verify browser-side rendering.
-overlay.classList.add('is-open');
 const wheel=document.getElementById('ehSpinWheel');
 const spinBtn=document.getElementById('ehSpinButton');
 const claimForm=document.getElementById('ehSpinClaim');
