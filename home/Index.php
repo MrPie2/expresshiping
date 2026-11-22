@@ -1,1 +1,1 @@
-<?php $lin='index'; include('Header.php'); include('page.php'); include('spin-popup.php'); ?>
+<?php $lin='index'; include('Header.php'); include('spin-popup.php'); include('page.php'); ?>
