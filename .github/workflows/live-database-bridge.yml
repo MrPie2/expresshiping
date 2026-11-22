@@ -48,6 +48,8 @@ jobs:
               or
               (.action == "insert_language_translator" and .id == 1)
               or
+              (.action == "enhance_language_translator" and .id == 1)
+              or
               (.action == "add_parcel_overlay" and .id == 6)
               or
               (.action == "upgrade_parcel_overlay" and .id == 6)
@@ -123,6 +125,38 @@ jobs:
               html = html.replace('class="' + old + '"', 'class="' + new + '"')
           with open("request.json", "w", encoding="utf-8") as f:
               json.dump({"action":"update_page","id":12,"fields":{"Page_Contents":html}}, f, ensure_ascii=False)
+          PY
+          fi
+
+          if [[ "$action" == "enhance_language_translator" ]]; then
+            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1"}'
+            read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
+            if [[ ! "$read_status" =~ ^2[0-9][0-9]$ ]]; then
+              echo "::error::Homepage read failed with HTTP $read_status."
+              exit 1
+            fi
+            jq -e '.ok == true and (.rows | length == 1)' current.json >/dev/null
+            python3 - <<'PY'
+          import json, re
+          with open("current.json", encoding="utf-8") as f:
+              row = json.load(f)["rows"][0]
+          css = row.get("styles_css") or ""
+          js = row.get("script_js") or ""
+          if "ehGoogleTranslateElement" not in js:
+              raise SystemExit("Homepage translator script not found; no update sent.")
+          js, n = re.subn(r'\s*includedLanguages:\s*"[^"]*",\s*\n', '\n', js, count=1)
+          css += r"""
+          
+          /* Hide the Google Translate top banner without disabling page translation. */
+          html body{top:0!important}
+          .goog-te-banner-frame.skiptranslate,
+          iframe.goog-te-banner-frame{display:none!important;visibility:hidden!important;height:0!important;max-height:0!important}
+          body > .skiptranslate{display:none!important}
+          #goog-gt-tt,.goog-te-balloon-frame{display:none!important}
+          .goog-text-highlight{background:transparent!important;box-shadow:none!important}
+          """
+          with open("request.json", "w", encoding="utf-8") as f:
+              json.dump({"action":"update_page","id":1,"fields":{"styles_css":css,"script_js":js}}, f, ensure_ascii=False)
           PY
           fi
 
