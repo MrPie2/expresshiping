@@ -1,6 +1,7 @@
 (function(){
 'use strict';
-const scriptUrl=document.currentScript ? document.currentScript.src : window.location.href;
+const scriptTag=document.currentScript || document.querySelector('script[src*="spin-win.js"]');
+const scriptUrl=scriptTag ? scriptTag.src : new URL('assets/js/spin-win.js',window.location.href).toString();
 const apiUrl=new URL('../../spin-api.php',scriptUrl).toString();
 const overlay=document.getElementById('ehSpinOverlay');
 if(!overlay)return;
@@ -66,7 +67,12 @@ async function initialisePopup(){
   window.ehSpinFrequency=settings.popup_frequency||'once_session';
   if(alreadySeen(window.ehSpinFrequency))return;
   window.setTimeout(open,Math.max(0,Math.min(60000,Number(settings.popup_delay_ms)||0)));
- }catch(error){say('Spin & Win is temporarily unavailable.');}
+ }catch(error){
+  say('Spin & Win could not load: '+error.message);
+  spinBtn.disabled=true;
+  spinBtn.textContent='Temporarily unavailable';
+  open();
+}
 }
 initialisePopup();
 document.getElementById('ehSpinClose').addEventListener('click',()=>{
