@@ -1,5 +1,5 @@
 <?php if (!isset($lin) || $lin === 'index'): ?>
-<link rel="stylesheet" href="assets/css/spin-win.css?v=1">
+<link rel="stylesheet" href="assets/css/spin-win.css?v=2">
 <div class="eh-spin-overlay" id="ehSpinOverlay" aria-modal="true" role="dialog" aria-labelledby="ehSpinTitle">
   <section class="eh-spin-modal">
     <button type="button" class="eh-spin-close" id="ehSpinClose" aria-label="Close">&times;</button>
@@ -25,5 +25,5 @@
     <p class="eh-spin-message" id="ehSpinMessage" aria-live="polite">One spin per browser session. Good luck!</p>
   </section>
 </div>
-<script src="assets/js/spin-win.js?v=3" defer></script>
+<script src="assets/js/spin-win.js?v=4" defer></script>
 <?php endif; ?>
