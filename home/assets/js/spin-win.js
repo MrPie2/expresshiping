@@ -27,7 +27,8 @@ function drawWheel(segments){
    ctx.font='bold 23px Arial';let label=String(segment.name||'Prize');if(label.length>17)label=label.slice(0,15)+'…';
    ctx.fillText(label,radius-22,0);ctx.restore();
  });
-}
+ }
+drawWheel([{name:'5% OFF'},{name:'10% OFF'},{name:'15% OFF'},{name:'FREE SHIPPING'}]);
 async function request(data){
  const response=await fetch('spin-api.php',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(data)});
  const payload=await response.json();if(!response.ok||!payload.ok)throw new Error(payload.message||'Something went wrong.');return payload;
