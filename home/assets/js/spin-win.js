@@ -45,7 +45,7 @@ async function request(data){
  let payload;
  try { payload=raw ? JSON.parse(raw) : null; }
  catch(parseError) {
-  const detail=raw.replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi,' ').replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/\\s+/g,' ').trim().slice(0,180);
+  const detail=raw.replace(/<script[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,180);
   throw new Error('The server returned an invalid response (HTTP '+response.status+'). '+(detail||'The response was empty. Check the PHP error log and database connection.'));
  }
  if(!payload||typeof payload!=='object') throw new Error('The server returned an empty response (HTTP '+response.status+'). Check the PHP error log and database connection.');
