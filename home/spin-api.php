@@ -11,7 +11,7 @@ function spin_json(int $status, array $data): void {
 }
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') spin_json(405, ['ok'=>false,'message'=>'POST required']);
 
-require_once __DIR__ . '/../Connect.php';
+require_once __DIR__ . '/../../Connect.php';
 if (!isset($Conn) || !($Conn instanceof mysqli)) spin_json(503, ['ok'=>false,'message'=>'Database unavailable']);
 $Conn->set_charset('utf8mb4');
 $rewardTableExistsResult = $Conn->query("SHOW TABLES LIKE 'spin_rewards'");
