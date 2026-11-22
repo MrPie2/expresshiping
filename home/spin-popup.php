@@ -1,5 +1,6 @@
 <?php if (!isset($lin) || $lin === 'index'): ?>
 <link rel="stylesheet" href="assets/css/spin-win.css?v=3">
+<span style="position:fixed;right:10px;bottom:10px;z-index:100000;background:#173d5d;color:#fff;padding:7px 11px;border-radius:20px;font:12px Arial,sans-serif">Spin system loaded</span>
 <div class="eh-spin-overlay" id="ehSpinOverlay" aria-modal="true" role="dialog" aria-labelledby="ehSpinTitle">
   <section class="eh-spin-modal">
     <button type="button" class="eh-spin-close" id="ehSpinClose" aria-label="Close">&times;</button>
