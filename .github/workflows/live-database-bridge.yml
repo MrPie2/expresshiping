@@ -65,6 +65,8 @@ jobs:
               (.action == "select" and
                (.sql == "SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1" or .sql == "SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE link = \"header\" LIMIT 1" or .sql == "SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE link = \"career\" LIMIT 1"))
               or
+              (.action == "space_carousel_controls" and .id == 1)
+              or
               (.action == "prepend_page_text" and .id == 1 and (.text | type == "string" and length > 0))
               or
               (.action == "replace_homepage_hero" and .id == 1 and
@@ -477,6 +479,47 @@ jobs:
           js = request["hero_js"]
           with open("request.json", "w", encoding="utf-8") as f:
               json.dump({"action":"update_page","id":1,"fields":{"Page_Contents":html,"styles_css":css,"script_js":js}}, f, ensure_ascii=False)
+          PY
+          fi
+
+          if [[ "$action" == "space_carousel_controls" ]]; then
+            read_request='{"action":"select","sql":"SELECT id, Page_Name, link, type, Page_Contents, styles_css, script_js FROM pages WHERE id = 1 LIMIT 1"}'
+            read_status="$(curl --silent --show-error --output current.json --write-out '%{http_code}' --request POST "$DB_BRIDGE_URL" --header "Authorization: Bearer $DB_BRIDGE_TOKEN" --header 'Content-Type: application/json' --data-binary "$read_request")"
+            if [[ ! "$read_status" =~ ^2[0-9][0-9]$ ]]; then
+              echo "::error::Homepage read failed with HTTP $read_status."
+              exit 1
+            fi
+            jq -e '.ok == true and (.rows | length == 1)' current.json >/dev/null
+            python3 - <<'PY'
+          import json
+          with open("current.json", encoding="utf-8") as f:
+              row = json.load(f)["rows"][0]
+          css = row.get("styles_css") or ""
+          marker = "/* Keep carousel controls clear of the slide action buttons on every screen size. */"
+          if marker not in css:
+              css += r"""
+
+          /* Keep carousel controls clear of the slide action buttons on every screen size. */
+          .eh-hero-carousel .eh-slide-container{padding-bottom:180px}
+          .eh-hero-carousel .eh-carousel-controls{bottom:24px;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"pagination arrows" "note note";row-gap:10px;column-gap:22px;align-items:center}
+          .eh-hero-carousel .eh-carousel-pagination{grid-area:pagination;min-height:38px}
+          .eh-hero-carousel .eh-carousel-arrows{grid-area:arrows;margin-left:0}
+          .eh-hero-carousel .eh-carousel-note{grid-area:note;justify-self:start;line-height:1.4}
+          @media(max-width:767.98px){
+            .eh-home .eh-hero-carousel{min-height:680px}
+            .eh-hero-carousel .eh-slide-container{min-height:680px;padding-top:52px;padding-bottom:180px}
+            .eh-hero-carousel .eh-carousel-controls{bottom:20px;row-gap:9px;column-gap:14px}
+            .eh-hero-carousel .eh-carousel-note{display:block;font-size:8px}
+          }
+          @media(max-width:420px){
+            .eh-home .eh-hero-carousel{min-height:720px}
+            .eh-hero-carousel .eh-slide-container{min-height:720px;padding-bottom:190px}
+            .eh-hero-carousel .eh-carousel-controls{grid-template-columns:1fr auto;bottom:18px}
+            .eh-hero-carousel .eh-carousel-note{font-size:8px}
+          }
+          """
+          with open("request.json", "w", encoding="utf-8") as f:
+              json.dump({"action":"update_page","id":1,"fields":{"styles_css":css}}, f, ensure_ascii=False)
           PY
           fi
 
