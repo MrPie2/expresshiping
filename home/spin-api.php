@@ -109,10 +109,7 @@ if ($action === 'spin') {
         $value = (float)$selected['reward_value'];
         $insert = $Conn->prepare("INSERT INTO spin_coupons (reward_id,reward_name,reward_type,reward_value,coupon_code,spin_token_hash,session_key) VALUES (?,?,?,?,?,?,?)");
         $insert->bind_param('isdssss', $rewardId, $name, $type, $value, $code, $tokenHash, $sessionKey);
-        // mysqli bind_param type strings cannot contain spaces.
-        $insert->close();
-        $insert = $Conn->prepare("INSERT INTO spin_coupons (reward_id,reward_name,reward_type,reward_value,coupon_code,spin_token_hash,session_key) VALUES (?,?,?,?,?,?,?)");
-        $insert->bind_param('isdssss', $rewardId, $name, $type, $value, $code, $tokenHash, $sessionKey);
+        if (!$insert->execute()) throw new RuntimeException('Could not create your spin record.');
         $insert->close();
         $inc = $Conn->prepare("UPDATE spin_rewards SET issued_count=issued_count+1 WHERE id=?");
         $inc->bind_param('i', $rewardId); $inc->execute(); $inc->close();
@@ -169,6 +166,13 @@ if (str_starts_with($action, 'admin_')) {
     if ($action === 'admin_delete_reward') {
         $id=(int)($input['id']??0); $s=$Conn->prepare("DELETE FROM spin_rewards WHERE id=?");$s->bind_param('i',$id);$ok=$s->execute();$s->close();
         spin_json($ok?200:500,['ok'=>$ok,'message'=>$ok?'Reward removed.':'Could not remove reward.']);
+    }
+    if ($action === 'admin_search_coupon') {
+        $term = '%' . trim((string)($input['query'] ?? '')) . '%';
+        $s = $Conn->prepare("SELECT id,coupon_code,reward_name,phone,status,spun_at,expires_at,redeemed_at FROM spin_coupons WHERE coupon_code LIKE ? OR phone LIKE ? ORDER BY id DESC LIMIT 100");
+        $s->bind_param('ss',$term,$term); $s->execute(); $rows=[];
+        $res=$s->get_result(); while($row=$res->fetch_assoc()) $rows[]=$row; $s->close();
+        spin_json(200,['ok'=>true,'coupons'=>$rows]);
     }
     if ($action === 'admin_redeem') {
         $code=strtoupper(trim((string)($input['code']??'')));
